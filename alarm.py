@@ -1,76 +1,83 @@
-"""Simple Python script to set an alarm for a specific time.
-   When the alarm goes off, a random youtube video will be opened.
-   The possible youtube video URLs are taken from "youtube_alarm_videos.txt"
-"""
-
 import datetime
 import os
 import time
 import random
 import webbrowser
 
-# If video URL file does not exist, create one
-if not os.path.isfile("youtube_alarm_videos.txt"):
-	print('Creating "youtube_alarm_videos.txt"...')
-	with open("youtube_alarm_videos.txt", "w") as alarm_file:
-		alarm_file.write("https://youtu.be/tXChZFcnsBE?si=QEZ0dMKFGgHVbZsR")
+VIDEO_FILE = "youtube_alarm_videos.txt"
+MESSAGE_FILE = "alarm_messages.txt"
+
+# Ensure video file exists
+if not os.path.isfile(VIDEO_FILE):
+    print(f'Creating "{VIDEO_FILE}"...')
+    with open(VIDEO_FILE, "w") as f:
+        f.write("https://youtu.be/tXChZFcnsBE?si=QEZ0dMKFGgHVbZsR")
+# Ensure messages file exists
+if not os.path.isfile(MESSAGE_FILE):
+    print(f'Creating "{MESSAGE_FILE}"...')
+    with open(MESSAGE_FILE, "w") as f:
+        f.write("hey baka!\nwake up baka!\nur a baka")
 
 def check_alarm_input(alarm_time):
-	# Check for valid alarm time input
-	if len(alarm_time) == 1: # [Hour] Format
-		if alarm_time[0] < 24 and alarm_time[0] >= 0:
-			return True
-	if len(alarm_time) == 2: # [Hour:Minute] Format
-		if alarm_time[0] < 24 and alarm_time[0] >= 0 and \
-		   alarm_time[1] < 60 and alarm_time[1] >= 0:
-			return True
-	elif len(alarm_time) == 3: # [Hour:Minute:Second] Format
-		if alarm_time[0] < 24 and alarm_time[0] >= 0 and \
-		   alarm_time[1] < 60 and alarm_time[1] >= 0 and \
-		   alarm_time[2] < 60 and alarm_time[2] >= 0:
-			return True
-	return False
+    if len(alarm_time) == 1:
+        return 0 <= alarm_time[0] < 24
+    if len(alarm_time) == 2:
+        return 0 <= alarm_time[0] < 24 and 0 <= alarm_time[1] < 60
+    if len(alarm_time) == 3:
+        return 0 <= alarm_time[0] < 24 and 0 <= alarm_time[1] < 60 and 0 <= alarm_time[2] < 60
+    return False
 
-# Get user input for the alarm time
-print("Set a time for the alarm (Ex. 06:30 or 18:30:00)")
+# Input: Multiple alarms
+print("if u have multiple nter the times and seperate them by commas (e.g., 06:30, 18:45:00):")
 while True:
-	alarm_input = input(">> ")
-	try:
-		alarm_time = [int(n) for n in alarm_input.split(":")]
-		if check_alarm_input(alarm_time):
-			break
-		else:
-			raise ValueError
-	except ValueError:
-		print("ERROR: Enter time in HH:MM or HH:MM:SS format")
+    alarm_input = input(">> ")
+    try:
+        alarm_times = []
+        for t in alarm_input.split(","):
+            parts = [int(n) for n in t.strip().split(":")]
+            if check_alarm_input(parts):
+                alarm_times.append(parts)
+            else:
+                raise ValueError
+        break
+    except ValueError:
+        print("ERROR")
 
-# Convert the alarm time from [H:M] or [H:M:S] to seconds
-seconds_hms = [3600, 60, 1] # Number of seconds in an Hour, Minute, and Second
-alarm_seconds = sum([a*b for a,b in zip(seconds_hms[:len(alarm_time)], alarm_time)])
-
-# Get the current time of day in seconds
+# Convert to seconds
+seconds_hms = [3600, 60, 1]
 now = datetime.datetime.now()
-current_time_seconds = sum([a*b for a,b in zip(seconds_hms, [now.hour, now.minute, now.second])])
+current_seconds = sum([a * b for a, b in zip(seconds_hms, [now.hour, now.minute, now.second])])
 
-# Calculate the number of seconds until alarm goes off
-time_diff_seconds = alarm_seconds - current_time_seconds
+alarm_seconds_list = []
+for alarm_time in alarm_times:
+    alarm_sec = sum([a * b for a, b in zip(seconds_hms[:len(alarm_time)], alarm_time)])
+    if alarm_sec < current_seconds:
+        alarm_sec += 86400  # next day
+    alarm_seconds_list.append(alarm_sec - current_seconds)
 
-# If time difference is negative, set alarm for next day
-if time_diff_seconds < 0:
-	time_diff_seconds += 86400 # number of seconds in a day
+for i, wait_time in enumerate(sorted(alarm_seconds_list)):
+    print(f"Alarm {i+1} set to go off in {datetime.timedelta(seconds=wait_time)}")
 
-# Display the amount of time until the alarm goes off
-print("Alarm set to go off in %s" % datetime.timedelta(seconds=time_diff_seconds))
+# Run alarms 
+for wait_time in sorted(alarm_seconds_list):
+    time.sleep(wait_time)
+    print("Wakey wakey eggs and bakey baka")
 
-# Sleep until the alarm goes off
-time.sleep(time_diff_seconds)
+    # msg
+    with open(MESSAGE_FILE, "r") as f:
+        messages = f.readlines()
+    print(random.choice(messages).strip())
 
-# Time for the alarm to go off
-print("Wake Up!")
+    # Vid
+    with open(VIDEO_FILE, "r") as f:
+        videos = f.readlines()
+    webbrowser.open(random.choice(videos))
 
-# Load list of possible video URLs
-with open("youtube_alarm_videos.txt", "r") as alarm_file:
-	videos = alarm_file.readlines()
-
-# Open a random video from the list
-webbrowser.open(random.choice(videos))
+    # Snooze
+    snooze = input("js get up bro, but like if ur still tired answer y or n to if u want to sleep like 5 more min ok (y/n): ").strip().lower()
+    if snooze == "y":
+        print("slepy time")
+        time.sleep(300)  # 5 minutes
+        print("ok like actually stop sleping now")
+        webbrowser.open(random.choice(videos))
+    print("finna done :).\n")
